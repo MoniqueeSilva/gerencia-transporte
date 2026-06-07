@@ -1,27 +1,43 @@
-import { login } from "./services/authService";
+import { useAuth }
+from "./contexts/AuthContext";
 
 function App() {
 
-  async function testLogin() {
-    try {
-      const result = await login(
-        "teste@ifpb.edu.br",
-        "123456"
-      );
+  const {
+    user,
+    loading,
+    logout
+  } = useAuth();
 
-      console.log("Login realizado:", result.user);
-
-      alert("Login realizado!");
-    } catch (error) {
-      console.error(error);
-    }
+  if (loading) {
+    return <h1>Carregando...</h1>;
   }
 
   return (
     <div>
-      <button onClick={testLogin}>
-        Testar Login
-      </button>
+
+      <h1>
+        Gerência Transporte
+      </h1>
+
+      {user ? (
+        <>
+          <p>
+            {user.email}
+          </p>
+
+          <button
+            onClick={logout}
+          >
+            Sair
+          </button>
+        </>
+      ) : (
+        <p>
+          Usuário não autenticado
+        </p>
+      )}
+
     </div>
   );
 }

@@ -5,7 +5,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../firebase/firestore";
-import { User } from "../models/user";
+import { User } from "../models/User";
 
 export async function createUser(user: User) {
   await setDoc(
