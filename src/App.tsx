@@ -1,43 +1,33 @@
-import { useAuth }
-from "./contexts/AuthContext";
+import { register } from "./services/authService";
 
 function App() {
 
-  const {
-    user,
-    loading,
-    logout
-  } = useAuth();
+  async function testarCadastro() {
+    try {
 
-  if (loading) {
-    return <h1>Carregando...</h1>;
+      const email =
+        `teste${Date.now()}@ifpb.edu.br`;
+
+      const result = await register(
+        "Monique",
+        email,
+        "123456"
+      );
+
+      console.log(result);
+
+      alert("Usuário criado!");
+
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   return (
     <div>
-
-      <h1>
-        Gerência Transporte
-      </h1>
-
-      {user ? (
-        <>
-          <p>
-            {user.email}
-          </p>
-
-          <button
-            onClick={logout}
-          >
-            Sair
-          </button>
-        </>
-      ) : (
-        <p>
-          Usuário não autenticado
-        </p>
-      )}
-
+      <button onClick={testarCadastro}>
+        Testar Cadastro
+      </button>
     </div>
   );
 }
