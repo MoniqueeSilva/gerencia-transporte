@@ -4,6 +4,5 @@ export interface Attendance {
   date: string;
   going: boolean;
   returning: boolean;
-  shift: string;
   createdAt: Date;
 }

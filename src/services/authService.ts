@@ -1,41 +1,14 @@
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
-} from "firebase/auth";
+import { isDriver } from "./userService";
 
-import { auth } from "../firebase/auth";
-import { registerUser } from "./userService";
-
-export async function register(
-  name: string,
-  email: string,
-  password: string
+export async function requireDriver(
+  uid: string
 ) {
+  const allowed =
+    await isDriver(uid);
 
-  const credential =
-    await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
+  if (!allowed) {
+    throw new Error(
+      "Acesso permitido apenas para motoristas"
     );
-
-  await registerUser(
-    credential.user.uid,
-    name,
-    email
-  );
-
-  return credential;
-}
-
-export async function login(
-  email: string,
-  password: string
-) {
-
-  return signInWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
+  }
 }

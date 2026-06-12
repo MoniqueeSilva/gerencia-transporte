@@ -1,5 +1,7 @@
 import {
   doc,
+  collection,
+  getDocs,
   getDoc,
   setDoc
 } from "firebase/firestore";
@@ -24,4 +26,16 @@ export async function getUser(uid: string) {
   }
 
   return snapshot.data() as User;
+}
+
+export async function getAllUsers() {
+
+  const snapshot =
+    await getDocs(
+      collection(db, "users")
+    );
+
+  return snapshot.docs.map(doc =>
+    doc.data() as User
+  );
 }

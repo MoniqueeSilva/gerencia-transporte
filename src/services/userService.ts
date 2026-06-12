@@ -1,19 +1,23 @@
-import { createUser } from "../repositories/userRepository";
-import { User } from "../models/User";
+import { getUser } from "../repositories/userRepository";
 
-export async function registerUser(
-  uid: string,
-  name: string,
-  email: string
+export async function findUserById(
+  uid: string
 ) {
+  return await getUser(uid);
+}
 
-  const user: User = {
-    uid,
-    name,
-    email,
-    role: "student",
-    createdAt: new Date()
-  };
+export async function isDriver(
+  uid: string
+) {
+  const user = await getUser(uid);
 
-  await createUser(user);
+  return user?.role === "driver";
+}
+
+export async function isStudent(
+  uid: string
+) {
+  const user = await getUser(uid);
+
+  return user?.role === "student";
 }
