@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle, XCircle, Bus, MapPin } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Bus, MapPin, CalendarDays } from "lucide-react";
+// Importações novas para o calendário funcionar
+import { Calendar } from "../components/ui/calendar";
+import { format, isWeekend } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function StudentPanel() {
   const navigate = useNavigate();
   const [selectedShift, setSelectedShift] = useState("manha");
   const [selectedTransport, setSelectedTransport] = useState("ida-volta");
+
+  // --- NOVOS ESTADOS DO CALENDÁRIO ---
+  const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>(new Date());
+  const [presencasConfirmadas, setPresencasConfirmadas] = useState<string[]>([]);
+  // -----------------------------------
 
   const confirmedPassengers = [
     { id: 1, name: "Maria Santos", shift: "Manhã", type: "Ida e volta" },
@@ -13,6 +22,27 @@ export default function StudentPanel() {
     { id: 3, name: "Ana Lima", shift: "Manhã", type: "Ida e volta" },
     { id: 4, name: "Carlos Souza", shift: "Manhã", type: "Somente volta" },
   ];
+
+  // --- FUNÇÕES DE CONFIRMAÇÃO ---
+  const handleConfirmarPresenca = () => {
+    if (!dataSelecionada) return;
+    const dataFormatada = format(dataSelecionada, "dd/MM/yyyy");
+    
+    if (!presencasConfirmadas.includes(dataFormatada)) {
+      setPresencasConfirmadas([...presencasConfirmadas, dataFormatada]);
+    }
+  };
+
+  const handleCancelarPresenca = () => {
+    if (!dataSelecionada) return;
+    const dataFormatada = format(dataSelecionada, "dd/MM/yyyy");
+    setPresencasConfirmadas(presencasConfirmadas.filter(data => data !== dataFormatada));
+  };
+
+  // Variáveis para controlar o visual dos botões baseado no dia
+  const dataFormatadaAtual = dataSelecionada ? format(dataSelecionada, "dd/MM/yyyy") : "";
+  const isConfirmado = presencasConfirmadas.includes(dataFormatadaAtual);
+  const isFimDeSemana = dataSelecionada ? isWeekend(dataSelecionada) : false;
 
   return (
     <div className="min-h-screen bg-white">
@@ -96,17 +126,73 @@ export default function StudentPanel() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-              <button className="flex items-center justify-center gap-2 bg-[#FCA311] text-white py-4 rounded-lg hover:bg-[#E39310] transition-colors shadow-md">
-                <CheckCircle className="w-5 h-5" />
-                VOU
-              </button>
-              <button className="flex items-center justify-center gap-2 bg-[#E5E5E5] text-[#000000] py-4 rounded-lg hover:bg-[#D0D0D0] transition-colors">
-                <XCircle className="w-5 h-5" />
-                NÃO VOU
-              </button>
+            {/* --- NOVO BLOCO: Calendário --- */}
+            <div className="border-t-2 border-[#E5E5E5] pt-6 mt-6">
+              <label className="text-[#000000] mb-3 flex items-center gap-2 font-medium">
+                <CalendarDays className="w-5 h-5 text-[#14213D]" />
+                Para qual data?
+              </label>
+              
+              <div className="flex flex-col sm:flex-row gap-6 items-start">
+                <div className="border-2 border-[#E5E5E5] rounded-xl p-2 inline-block bg-white shadow-sm">
+                  <Calendar
+                    mode="single"
+                    selected={dataSelecionada}
+                    onSelect={setDataSelecionada}
+                    locale={ptBR}
+                    disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Bloqueia dom(0) e sáb(6)
+                    className="rounded-md"
+                  />
+                </div>
+
+                <div className="flex-1 w-full">
+                  {isFimDeSemana ? (
+                    <div className="p-4 bg-gray-100 rounded-lg text-gray-600 font-medium text-center">
+                      O ônibus não roda aos fins de semana.
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 mb-4 text-center">
+                      <p className="text-sm text-blue-800">
+                        Data selecionada: <br/>
+                        {dataSelecionada && <strong className="text-lg">{format(dataSelecionada, "dd 'de' MMMM", { locale: ptBR })}</strong>}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons (Agora controlados pelo calendário) */}
+                  <div className="grid grid-cols-1 gap-3">
+                    <button 
+                      onClick={handleConfirmarPresenca}
+                      disabled={isFimDeSemana || isConfirmado}
+                      className={`flex items-center justify-center gap-2 py-4 rounded-lg transition-colors font-bold shadow-md ${
+                        isConfirmado 
+                          ? "bg-green-600 text-white" 
+                          : isFimDeSemana 
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-[#FCA311] text-white hover:bg-[#E39310]"
+                      }`}
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      {isConfirmado ? "PRESENÇA CONFIRMADA" : "VOU NESSE DIA"}
+                    </button>
+                    
+                    <button 
+                      onClick={handleCancelarPresenca}
+                      disabled={isFimDeSemana || !isConfirmado}
+                      className={`flex items-center justify-center gap-2 py-3 rounded-lg transition-colors font-medium ${
+                        !isConfirmado || isFimDeSemana
+                          ? "bg-[#E5E5E5] text-[#A0A0A0] cursor-not-allowed"
+                          : "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                      }`}
+                    >
+                      <XCircle className="w-5 h-5" />
+                      CANCELAR PRESENÇA
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
 
@@ -127,8 +213,8 @@ export default function StudentPanel() {
                     <Bus className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-[#000000]">{passenger.name}</p>
-                    <p className="text-sm text-[#000000]">
+                    <p className="text-[#000000] font-medium">{passenger.name}</p>
+                    <p className="text-sm text-gray-600">
                       {passenger.shift} • {passenger.type}
                     </p>
                   </div>
