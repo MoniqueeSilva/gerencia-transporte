@@ -2,74 +2,96 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Bus, Mail, Lock, User } from "lucide-react";
 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+
+import { auth } from "../../firebase/auth";
+import { db } from "../../firebase/firestore";
+
 export default function Login() {
   const navigate = useNavigate();
-  
-  // Alterna entre a visualização de Login e Cadastro
+
   const [isCadastro, setIsCadastro] = useState(false);
-  
+
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  
+
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
   const [carregando, setCarregando] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErro(""); 
+
+    setErro("");
     setSucesso("");
-    setCarregando(true); 
+    setCarregando(true);
 
     try {
-      // Simula o tempo de resposta do servidor (1.5 segundos)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
       if (isCadastro) {
-        // LÓGICA DE CADASTRO (Guardar no localStorage)
-        if (password.length < 3) {
-          throw new Error("A senha deve ter pelo menos 3 caracteres.");
+        if (!nome.trim()) {
+          throw new Error("Informe seu nome completo.");
         }
 
-        const novoUsuario = { 
-          nome: nome, 
-          email: email, 
-          password: password,
-          tipoUsuario: "ALUNO" // Definimos como aluno por defeito para o teste
-        };
+        if (password.length < 6) {
+          throw new Error("A senha deve ter pelo menos 6 caracteres.");
+        }
 
-        localStorage.setItem('usuarioTeste', JSON.stringify(novoUsuario));
-        
+        const credencial = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+
+        await updateProfile(credencial.user, {
+          displayName: nome,
+        });
+
+        await setDoc(doc(db, "usuarios", credencial.user.uid), {
+          uid: credencial.user.uid,
+          nome,
+          email,
+          tipoUsuario: "ALUNO",
+          matricula: "",
+          telefone: "",
+          rota: "",
+          ativo: true,
+          criadoEm: serverTimestamp(),
+        });
+
         setSucesso("Cadastro realizado com sucesso! Faça login para entrar.");
-        setIsCadastro(false); // Volta automaticamente para o ecrã de login
-        setPassword(""); // Limpa a senha por segurança
-
+        setIsCadastro(false);
+        setPassword("");
+        setNome("");
       } else {
-        // LÓGICA DE LOGIN (Ler do localStorage)
-        const usuarioSalvoString = localStorage.getItem('usuarioTeste');
-        const usuarioSalvo = usuarioSalvoString ? JSON.parse(usuarioSalvoString) : null;
-
-        // Verifica se é o utilizador que acabou de se cadastrar OU o nosso teste fixo
-        const isLoginValido = 
-          (usuarioSalvo && email === usuarioSalvo.email && password === usuarioSalvo.password) ||
-          (email === "aluno@teste.com" && password === "123");
-
-        if (isLoginValido) {
-          localStorage.setItem('meuToken', 'abc-123-token-simulado');
-          navigate("/aluno"); 
-        } else {
-          throw new Error('E-mail ou senha incorretos!');
-        }
+        await signInWithEmailAndPassword(auth, email, password);
+        navigate("/aluno");
       }
     } catch (err: any) {
-      setErro(err.message); 
+      if (err.code === "auth/email-already-in-use") {
+        setErro("Este e-mail já está cadastrado.");
+      } else if (err.code === "auth/invalid-credential") {
+        setErro("E-mail ou senha incorretos.");
+      } else if (err.code === "auth/invalid-email") {
+        setErro("E-mail inválido.");
+      } else if (err.code === "auth/weak-password") {
+        setErro("A senha deve ter pelo menos 6 caracteres.");
+      } else if (err.code === "permission-denied") {
+        setErro("Sem permissão para salvar no Firestore. Verifique as regras do banco.");
+      } else {
+        setErro(err.message || "Erro ao processar solicitação.");
+      }
     } finally {
-      setCarregando(false); 
+      setCarregando(false);
     }
   };
 
-  // Função para limpar os formulários ao alternar as abas
   const alternarModo = () => {
     setIsCadastro(!isCadastro);
     setErro("");
@@ -82,42 +104,43 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-24 h-24 bg-[#FCA311] rounded-full flex items-center justify-center mb-6 shadow-lg">
             <Bus className="w-12 h-12 text-white" />
           </div>
+
           <h1 className="text-[#14213D] text-center mb-2 text-2xl font-bold">
             Transporte Escolar
           </h1>
+
           <p className="text-[#000000] text-center">
             Gestão de Presença e Localização
           </p>
         </div>
 
-        {/* Título do Formulário */}
         <h2 className="text-xl text-center text-[#14213D] font-semibold mb-6">
           {isCadastro ? "Criar Nova Conta" : "Faça o seu Login"}
         </h2>
 
-        {/* Mensagem de Sucesso (após o cadastro) */}
         {sucesso && (
           <div className="mb-4 p-3 bg-green-100 text-green-700 text-sm text-center rounded-lg border border-green-200">
             {sucesso}
           </div>
         )}
 
-        {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          
-          {/* Campo Nome (Aparece apenas se for Cadastro) */}
           {isCadastro && (
             <div>
-              <label htmlFor="nome" className="block text-[#000000] mb-2 text-sm font-medium">
+              <label
+                htmlFor="nome"
+                className="block text-[#000000] mb-2 text-sm font-medium"
+              >
                 Nome Completo
               </label>
+
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+
                 <input
                   id="nome"
                   type="text"
@@ -132,14 +155,19 @@ export default function Login() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-[#000000] mb-2 text-sm font-medium">
-              E-mail ou Matrícula
+            <label
+              htmlFor="email"
+              className="block text-[#000000] mb-2 text-sm font-medium"
+            >
+              E-mail
             </label>
+
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+
               <input
                 id="email"
-                type="text"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
@@ -150,11 +178,16 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-[#000000] mb-2 text-sm font-medium">
+            <label
+              htmlFor="password"
+              className="block text-[#000000] mb-2 text-sm font-medium"
+            >
               Senha
             </label>
+
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+
               <input
                 id="password"
                 type="password"
@@ -167,7 +200,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Mensagem de Erro */}
           {erro && (
             <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded">
               {erro}
@@ -178,29 +210,30 @@ export default function Login() {
             type="submit"
             disabled={carregando}
             className={`w-full text-white font-semibold py-3.5 rounded-lg transition-colors shadow-md ${
-              carregando ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#FCA311] hover:bg-[#E39310]'
+              carregando
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#FCA311] hover:bg-[#E39310]"
             }`}
           >
-            {carregando 
-              ? 'A processar...' 
-              : isCadastro ? 'Registar Conta' : 'Entrar'
-            }
+            {carregando
+              ? "Processando..."
+              : isCadastro
+              ? "Registrar Conta"
+              : "Entrar"}
           </button>
         </form>
 
-        {/* Links para alternar */}
         <div className="mt-6 flex flex-col items-center gap-3">
-          <button 
+          <button
             onClick={alternarModo}
-            type="button" 
+            type="button"
             className="text-[#14213D] hover:underline font-medium focus:outline-none"
           >
-            {isCadastro 
-              ? 'Já tem uma conta? Faça Login' 
-              : 'Não tem conta? Cadastrar-se'
-            }
+            {isCadastro
+              ? "Já tem uma conta? Faça Login"
+              : "Não tem conta? Cadastrar-se"}
           </button>
-          
+
           {!isCadastro && (
             <a href="#" className="text-[#14213D] text-sm hover:underline">
               Esqueci a senha
@@ -208,9 +241,10 @@ export default function Login() {
           )}
         </div>
 
-        {/* Footer */}
         <footer className="mt-12 text-center text-[#000000]">
-          <p className="text-xs">© 2026 Transporte Escolar - Todos os direitos reservados</p>
+          <p className="text-xs">
+            © 2026 Transporte Escolar - Todos os direitos reservados
+          </p>
         </footer>
       </div>
     </div>
