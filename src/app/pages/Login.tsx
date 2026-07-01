@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Bus, Mail, Lock, User } from "lucide-react";
+import { Bus, Mail, Lock, User, School } from "lucide-react";
 
 import {
   createUserWithEmailAndPassword,
@@ -21,6 +21,7 @@ export default function Login() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [instituicaoId, setInstituicaoId] = useState("");
 
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
@@ -36,11 +37,15 @@ export default function Login() {
     try {
       if (isCadastro) {
         if (!nome.trim()) {
-          throw new Error("Informe seu nome completo.");
+          throw new Error("Informe seu nome");
+        }
+
+        if (!instituicaoId) {
+          throw new Error("Selecione sua instituição");
         }
 
         if (password.length < 6) {
-          throw new Error("A senha deve ter pelo menos 6 caracteres.");
+          throw new Error("A senha deve ter pelo menos 6 caracteres");
         }
 
         const credencial = await createUserWithEmailAndPassword(
@@ -57,18 +62,22 @@ export default function Login() {
           uid: credencial.user.uid,
           nome,
           email,
-          tipoUsuario: "ALUNO",
+          role: "student",
+          instituicaoId,
           matricula: "",
           telefone: "",
-          rota: "",
+          rotaId: "",
+          paradaOrdem: 0,
+          turno: "",
           ativo: true,
           criadoEm: serverTimestamp(),
         });
 
-        setSucesso("Cadastro realizado com sucesso! Faça login para entrar.");
+        setSucesso("Cadastro realizado com sucesso! Faça login para entrar");
         setIsCadastro(false);
         setPassword("");
         setNome("");
+        setInstituicaoId("");
       } else {
         await signInWithEmailAndPassword(auth, email, password);
         navigate("/aluno");
@@ -83,7 +92,7 @@ export default function Login() {
       } else if (err.code === "auth/weak-password") {
         setErro("A senha deve ter pelo menos 6 caracteres.");
       } else if (err.code === "permission-denied") {
-        setErro("Sem permissão para salvar no Firestore. Verifique as regras do banco.");
+        setErro("Sem permissão para salvar no Firestore.");
       } else {
         setErro(err.message || "Erro ao processar solicitação.");
       }
@@ -99,6 +108,7 @@ export default function Login() {
     setEmail("");
     setPassword("");
     setNome("");
+    setInstituicaoId("");
   };
 
   return (
@@ -130,28 +140,58 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {isCadastro && (
-            <div>
-              <label
-                htmlFor="nome"
-                className="block text-[#000000] mb-2 text-sm font-medium"
-              >
-                Nome Completo
-              </label>
+            <>
+              <div>
+                <label
+                  htmlFor="nome"
+                  className="block text-[#000000] mb-2 text-sm font-medium"
+                >
+                  Nome
+                </label>
 
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
 
-                <input
-                  id="nome"
-                  type="text"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
-                  placeholder="Digite o seu nome"
-                  required={isCadastro}
-                />
+                  <input
+                    id="nome"
+                    type="text"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
+                    placeholder="Digite o seu nome"
+                    required={isCadastro}
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label
+                  htmlFor="instituicao"
+                  className="block text-[#000000] mb-2 text-sm font-medium"
+                >
+                  Instituição
+                </label>
+
+                <div className="relative">
+                  <School className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+
+                  <select
+                    id="instituicao"
+                    value={instituicaoId}
+                    onChange={(e) => setInstituicaoId(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors bg-white"
+                    required={isCadastro}
+                  >
+                    <option value="">Selecione sua Instituição</option>
+                    <option value="ifpb">IFPB</option>
+                    <option value="uepb">UEPB</option>
+                    <option value="eesap">EESAP</option>
+                    <option value="centro">CENTRO</option>
+                    <option value="belem">BELÉM</option>
+                  </select>
+                </div>
+              </div>
+            </>
           )}
 
           <div>

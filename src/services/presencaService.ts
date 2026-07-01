@@ -4,7 +4,7 @@ import { db } from "../firebase/firestore";
 type DadosPresenca = {
   usuarioId: string;
   nomeAluno: string;
-  escolaId: string;
+  instituicaoId: string;
   turno: string;
   tipoTransporte: string;
   vai: boolean;
