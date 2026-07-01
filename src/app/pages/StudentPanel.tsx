@@ -5,11 +5,14 @@ import { ArrowLeft, CheckCircle, XCircle, Bus, MapPin, CalendarDays } from "luci
 import { Calendar } from "../components/ui/calendar";
 import { format, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { auth } from "../../firebase/auth";
+import { salvarPresenca, cancelarPresenca } from "../../services/presencaService";
 
 export default function StudentPanel() {
   const navigate = useNavigate();
   const [selectedShift, setSelectedShift] = useState("manha");
   const [selectedTransport, setSelectedTransport] = useState("ida-volta");
+  const [escolaId] = useState("ifpb");
 
   // --- NOVOS ESTADOS DO CALENDÁRIO ---
   const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>(new Date());
@@ -24,23 +27,57 @@ export default function StudentPanel() {
   ];
 
   // --- FUNÇÕES DE CONFIRMAÇÃO ---
-  const handleConfirmarPresenca = () => {
+  const handleConfirmarPresenca = async () => {
     if (!dataSelecionada) return;
-    const dataFormatada = format(dataSelecionada, "dd/MM/yyyy");
-    
+
+    const usuario = auth.currentUser;
+
+    if (!usuario) {
+      alert("Usuário não autenticado.");
+      navigate("/");
+      return;
+    }
+
+    const dataFormatada = format(dataSelecionada, "yyyy-MM-dd");
+
+    await salvarPresenca({
+      usuarioId: usuario.uid,
+      nomeAluno: usuario.displayName || "Aluno",
+      escolaId,
+      turno: selectedShift,
+      tipoTransporte: selectedTransport,
+      vai: true,
+      retorna: selectedTransport === "volta" || selectedTransport === "ida-volta",
+      data: dataFormatada,
+    });
+
     if (!presencasConfirmadas.includes(dataFormatada)) {
       setPresencasConfirmadas([...presencasConfirmadas, dataFormatada]);
     }
   };
 
-  const handleCancelarPresenca = () => {
+  const handleCancelarPresenca = async () => {
     if (!dataSelecionada) return;
-    const dataFormatada = format(dataSelecionada, "dd/MM/yyyy");
-    setPresencasConfirmadas(presencasConfirmadas.filter(data => data !== dataFormatada));
+
+    const usuario = auth.currentUser;
+
+    if (!usuario) {
+      alert("Usuário não autenticado.");
+      navigate("/");
+      return;
+    }
+
+    const dataFormatada = format(dataSelecionada, "yyyy-MM-dd");
+
+    await cancelarPresenca(usuario.uid, dataFormatada);
+
+    setPresencasConfirmadas(
+      presencasConfirmadas.filter((data) => data !== dataFormatada)
+    );
   };
 
   // Variáveis para controlar o visual dos botões baseado no dia
-  const dataFormatadaAtual = dataSelecionada ? format(dataSelecionada, "dd/MM/yyyy") : "";
+  const dataFormatadaAtual = dataSelecionada ? format(dataSelecionada, "yyyy-MM-dd") : "";
   const isConfirmado = presencasConfirmadas.includes(dataFormatadaAtual);
   const isFimDeSemana = dataSelecionada ? isWeekend(dataSelecionada) : false;
 
