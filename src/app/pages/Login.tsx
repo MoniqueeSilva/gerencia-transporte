@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Bus, Mail, Lock, User, School } from "lucide-react";
 
@@ -13,6 +13,14 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth } from "../../firebase/auth";
 import { db } from "../../firebase/firestore";
 
+import {
+  listarInstituicoes,
+} from "../../services/instituicaoService";
+
+import type {
+  Instituicao,
+} from "../../repositories/instituicaoRepository";
+
 export default function Login() {
   const navigate = useNavigate();
 
@@ -23,9 +31,34 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [instituicaoId, setInstituicaoId] = useState("");
 
+  const [instituicoes, setInstituicoes] = useState<Instituicao[]>([]);
+
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [carregandoInstituicoes, setCarregandoInstituicoes] = useState(false);
+
+  useEffect(() => {
+    async function carregarInstituicoes() {
+      try {
+        setCarregandoInstituicoes(true);
+        setErro("");
+
+        const dados = await listarInstituicoes();
+
+        console.log("Instituições carregadas:", dados);
+
+        setInstituicoes(dados);
+      } catch (error: any) {
+        console.error("Erro ao carregar instituições:", error);
+        setErro(error.message || "Erro ao carregar instituições.");
+      } finally {
+        setCarregandoInstituicoes(false);
+      }
+    }
+
+    carregarInstituicoes();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,20 +208,28 @@ export default function Login() {
                 <div className="relative">
                   <School className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
 
-                  <select
-                    id="instituicao"
-                    value={instituicaoId}
-                    onChange={(e) => setInstituicaoId(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors bg-white"
-                    required={isCadastro}
-                  >
-                    <option value="">Selecione sua Instituição</option>
-                    <option value="ifpb">IFPB</option>
-                    <option value="uepb">UEPB</option>
-                    <option value="eesap">EESAP</option>
-                    <option value="centro">CENTRO</option>
-                    <option value="belem">BELÉM</option>
-                  </select>
+                <select
+                  id="instituicao"
+                  value={instituicaoId}
+                  onChange={(e) => setInstituicaoId(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors bg-white"
+                  required={isCadastro}
+                  disabled={carregandoInstituicoes}
+                >
+                  <option value="">
+                    {carregandoInstituicoes
+                      ? "Carregando instituições..."
+                      : instituicoes.length === 0
+                      ? "Nenhuma instituição encontrada"
+                      : "Selecione sua instituição"}
+                  </option>
+
+                  {instituicoes.map((instituicao) => (
+                    <option key={instituicao.id} value={instituicao.id}>
+                      {instituicao.nome}
+                    </option>
+                  ))}
+                </select>
                 </div>
               </div>
             </>
