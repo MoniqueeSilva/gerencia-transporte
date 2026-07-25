@@ -1,7 +1,13 @@
-import { doc, setDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
+import {
+  doc,
+  deleteDoc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
+
 import { db } from "../firebase/firestore";
 
-type DadosPresenca = {
+export type DadosPresenca = {
   usuarioId: string;
   nomeAluno: string;
   instituicaoId: string;
@@ -12,16 +18,40 @@ type DadosPresenca = {
   data: string;
 };
 
-export async function salvarPresenca(dados: DadosPresenca) {
+export async function salvarPresenca(
+  dados: DadosPresenca
+) {
   const idDocumento = `${dados.usuarioId}_${dados.data}`;
 
-  await setDoc(doc(db, "presencas", idDocumento), {
-    ...dados,
-    atualizadoEm: serverTimestamp(),
-  });
+  const referencia = doc(
+    db,
+    "presencas",
+    idDocumento
+  );
+
+  await setDoc(
+    referencia,
+    {
+      ...dados,
+      atualizadoEm: serverTimestamp(),
+    },
+    {
+      merge: true,
+    }
+  );
 }
 
-export async function cancelarPresenca(usuarioId: string, data: string) {
+export async function cancelarPresenca(
+  usuarioId: string,
+  data: string
+) {
   const idDocumento = `${usuarioId}_${data}`;
-  await deleteDoc(doc(db, "presencas", idDocumento));
+
+  const referencia = doc(
+    db,
+    "presencas",
+    idDocumento
+  );
+
+  await deleteDoc(referencia);
 }

@@ -1,25 +1,34 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Bus, Mail, Lock, User, School } from "lucide-react";
+import {
+  Bus,
+  Mail,
+  Lock,
+  User,
+  UserCog,
+  Clock,
+} from "lucide-react";
 
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
+  deleteUser,
 } from "firebase/auth";
 
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 
 import { auth } from "../../firebase/auth";
 import { db } from "../../firebase/firestore";
 
-import {
-  listarInstituicoes,
-} from "../../services/instituicaoService";
+import { findUserById } from "../../services/userService";
 
-import type {
-  Instituicao,
-} from "../../repositories/instituicaoRepository";
+type TipoUsuario = "student" | "driver";
+type Turno = "manha" | "tarde" | "noite";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,105 +38,184 @@ export default function Login() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [instituicaoId, setInstituicaoId] = useState("");
 
-  const [instituicoes, setInstituicoes] = useState<Instituicao[]>([]);
+  const [role, setRole] = useState<TipoUsuario>("student");
+  const [turnoMotorista, setTurnoMotorista] =
+    useState<Turno>("manha");
 
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [carregandoInstituicoes, setCarregandoInstituicoes] = useState(false);
 
-  useEffect(() => {
-    async function carregarInstituicoes() {
-      try {
-        setCarregandoInstituicoes(true);
-        setErro("");
+  const limparFormulario = () => {
+    setNome("");
+    setEmail("");
+    setPassword("");
+    setRole("student");
+    setTurnoMotorista("manha");
+  };
 
-        const dados = await listarInstituicoes();
-
-        console.log("Instituições carregadas:", dados);
-
-        setInstituicoes(dados);
-      } catch (error: any) {
-        console.error("Erro ao carregar instituições:", error);
-        setErro(error.message || "Erro ao carregar instituições.");
-      } finally {
-        setCarregandoInstituicoes(false);
-      }
-    }
-
-    carregarInstituicoes();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
 
     setErro("");
     setSucesso("");
     setCarregando(true);
 
     try {
+      const nomeNormalizado = nome.trim();
+      const emailNormalizado = email.trim().toLowerCase();
+
       if (isCadastro) {
-        if (!nome.trim()) {
-          throw new Error("Informe seu nome");
+        if (!nomeNormalizado) {
+          throw new Error("Informe seu nome.");
         }
 
-        if (!instituicaoId) {
-          throw new Error("Selecione sua instituição");
+        if (!emailNormalizado) {
+          throw new Error("Informe seu e-mail.");
+        }
+
+        if (role === "driver" && !turnoMotorista) {
+          throw new Error("Selecione o turno do motorista.");
         }
 
         if (password.length < 6) {
-          throw new Error("A senha deve ter pelo menos 6 caracteres");
+          throw new Error(
+            "A senha deve ter pelo menos 6 caracteres."
+          );
         }
 
-        const credencial = await createUserWithEmailAndPassword(
+        const credencial =
+          await createUserWithEmailAndPassword(
+            auth,
+            emailNormalizado,
+            password
+          );
+
+        try {
+          await updateProfile(credencial.user, {
+            displayName: nomeNormalizado,
+          });
+
+          await setDoc(
+            doc(db, "usuarios", credencial.user.uid),
+            {
+              uid: credencial.user.uid,
+              nome: nomeNormalizado,
+              email: emailNormalizado,
+              role,
+
+              // O turno é fixo somente para o motorista.
+              turno:
+                role === "driver" ? turnoMotorista : "",
+
+              matricula: "",
+              telefone: "",
+              ativo: true,
+              criadoEm: serverTimestamp(),
+            }
+          );
+        } catch (error) {
+          /*
+           * Remove o usuário do Authentication caso o documento
+           * não consiga ser salvo no Firestore.
+           */
+          try {
+            await deleteUser(credencial.user);
+          } catch (deleteError) {
+            console.error(
+              "Erro ao remover usuário incompleto:",
+              deleteError
+            );
+          }
+
+          throw error;
+        }
+
+        setSucesso(
+          role === "driver"
+            ? "Motorista cadastrado com sucesso! Faça login para entrar."
+            : "Aluno cadastrado com sucesso! Faça login para entrar."
+        );
+
+        setIsCadastro(false);
+        limparFormulario();
+        return;
+      }
+
+      const credencial =
+        await signInWithEmailAndPassword(
           auth,
-          email,
+          emailNormalizado,
           password
         );
 
-        await updateProfile(credencial.user, {
-          displayName: nome,
-        });
+      const dadosUsuario = await findUserById(
+        credencial.user.uid
+      );
 
-        await setDoc(doc(db, "usuarios", credencial.user.uid), {
-          uid: credencial.user.uid,
-          nome,
-          email,
-          role: "student",
-          instituicaoId,
-          matricula: "",
-          telefone: "",
-          rotaId: "",
-          paradaOrdem: 0,
-          turno: "",
-          ativo: true,
-          criadoEm: serverTimestamp(),
-        });
-
-        setSucesso("Cadastro realizado com sucesso! Faça login para entrar");
-        setIsCadastro(false);
-        setPassword("");
-        setNome("");
-        setInstituicaoId("");
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        navigate("/aluno");
+      if (!dadosUsuario) {
+        throw new Error(
+          "Os dados deste usuário não foram encontrados no Firestore."
+        );
       }
-    } catch (err: any) {
-      if (err.code === "auth/email-already-in-use") {
+
+      if (dadosUsuario.ativo === false) {
+        throw new Error("Este usuário está desativado.");
+      }
+
+      if (dadosUsuario.role === "driver") {
+        navigate("/motorista");
+        return;
+      }
+
+      if (dadosUsuario.role === "student") {
+        navigate("/aluno");
+        return;
+      }
+
+      throw new Error("O perfil deste usuário não é válido.");
+    } catch (err: unknown) {
+      console.error("Erro de autenticação:", err);
+
+      const erroFirebase = err as {
+        code?: string;
+        message?: string;
+      };
+
+      if (erroFirebase.code === "auth/email-already-in-use") {
         setErro("Este e-mail já está cadastrado.");
-      } else if (err.code === "auth/invalid-credential") {
+      } else if (
+        erroFirebase.code === "auth/invalid-credential" ||
+        erroFirebase.code === "auth/wrong-password" ||
+        erroFirebase.code === "auth/user-not-found"
+      ) {
         setErro("E-mail ou senha incorretos.");
-      } else if (err.code === "auth/invalid-email") {
-        setErro("E-mail inválido.");
-      } else if (err.code === "auth/weak-password") {
-        setErro("A senha deve ter pelo menos 6 caracteres.");
-      } else if (err.code === "permission-denied") {
-        setErro("Sem permissão para salvar no Firestore.");
+      } else if (
+        erroFirebase.code === "auth/invalid-email"
+      ) {
+        setErro("Informe um e-mail válido.");
+      } else if (
+        erroFirebase.code === "auth/weak-password"
+      ) {
+        setErro(
+          "A senha deve ter pelo menos 6 caracteres."
+        );
+      } else if (
+        erroFirebase.code === "permission-denied" ||
+        erroFirebase.code ===
+          "firestore/permission-denied"
+      ) {
+        setErro(
+          "Sem permissão para acessar o Firestore."
+        );
       } else {
-        setErro(err.message || "Erro ao processar solicitação.");
+        setErro(
+          erroFirebase.message ||
+            "Não foi possível processar a solicitação."
+        );
       }
     } finally {
       setCarregando(false);
@@ -135,13 +223,21 @@ export default function Login() {
   };
 
   const alternarModo = () => {
-    setIsCadastro(!isCadastro);
+    setIsCadastro((estadoAtual) => !estadoAtual);
     setErro("");
     setSucesso("");
-    setEmail("");
-    setPassword("");
-    setNome("");
-    setInstituicaoId("");
+    limparFormulario();
+  };
+
+  const alterarTipoUsuario = (
+    novoTipo: TipoUsuario
+  ) => {
+    setRole(novoTipo);
+    setErro("");
+
+    if (novoTipo === "student") {
+      setTurnoMotorista("manha");
+    }
   };
 
   return (
@@ -162,7 +258,9 @@ export default function Login() {
         </div>
 
         <h2 className="text-xl text-center text-[#14213D] font-semibold mb-6">
-          {isCadastro ? "Criar Nova Conta" : "Faça o seu Login"}
+          {isCadastro
+            ? "Criar Nova Conta"
+            : "Faça o seu Login"}
         </h2>
 
         {sucesso && (
@@ -171,7 +269,10 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
           {isCadastro && (
             <>
               <div>
@@ -189,49 +290,83 @@ export default function Login() {
                     id="nome"
                     type="text"
                     value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
+                    onChange={(event) =>
+                      setNome(event.target.value)
+                    }
+                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none"
                     placeholder="Digite o seu nome"
-                    required={isCadastro}
+                    required
                   />
                 </div>
               </div>
 
               <div>
                 <label
-                  htmlFor="instituicao"
+                  htmlFor="tipoUsuario"
                   className="block text-[#000000] mb-2 text-sm font-medium"
                 >
-                  Instituição
+                  Tipo de usuário
                 </label>
 
                 <div className="relative">
-                  <School className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+                  <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
 
-                <select
-                  id="instituicao"
-                  value={instituicaoId}
-                  onChange={(e) => setInstituicaoId(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors bg-white"
-                  required={isCadastro}
-                  disabled={carregandoInstituicoes}
-                >
-                  <option value="">
-                    {carregandoInstituicoes
-                      ? "Carregando instituições..."
-                      : instituicoes.length === 0
-                      ? "Nenhuma instituição encontrada"
-                      : "Selecione sua instituição"}
-                  </option>
-
-                  {instituicoes.map((instituicao) => (
-                    <option key={instituicao.id} value={instituicao.id}>
-                      {instituicao.nome}
+                  <select
+                    id="tipoUsuario"
+                    value={role}
+                    onChange={(event) =>
+                      alterarTipoUsuario(
+                        event.target.value as TipoUsuario
+                      )
+                    }
+                    className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg bg-white focus:border-[#FCA311] focus:outline-none"
+                  >
+                    <option value="student">
+                      Aluno
                     </option>
-                  ))}
-                </select>
+                    <option value="driver">
+                      Motorista
+                    </option>
+                  </select>
                 </div>
               </div>
+
+              {role === "driver" && (
+                <div>
+                  <label
+                    htmlFor="turnoMotorista"
+                    className="block text-[#000000] mb-2 text-sm font-medium"
+                  >
+                    Turno do motorista
+                  </label>
+
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#14213D]" />
+
+                    <select
+                      id="turnoMotorista"
+                      value={turnoMotorista}
+                      onChange={(event) =>
+                        setTurnoMotorista(
+                          event.target.value as Turno
+                        )
+                      }
+                      className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg bg-white focus:border-[#FCA311] focus:outline-none"
+                      required
+                    >
+                      <option value="manha">
+                        Manhã
+                      </option>
+                      <option value="tarde">
+                        Tarde
+                      </option>
+                      <option value="noite">
+                        Noite
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -250,9 +385,12 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+                className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none"
                 placeholder="Digite o seu e-mail"
+                autoComplete="email"
                 required
               />
             </div>
@@ -273,16 +411,23 @@ export default function Login() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none transition-colors"
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+                className="w-full pl-12 pr-4 py-3 border border-[#E5E5E5] rounded-lg focus:border-[#FCA311] focus:outline-none"
                 placeholder="Digite a sua senha"
+                autoComplete={
+                  isCadastro
+                    ? "new-password"
+                    : "current-password"
+                }
                 required
               />
             </div>
           </div>
 
           {erro && (
-            <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-2 rounded">
+            <div className="text-red-500 text-sm text-center font-medium bg-red-50 p-3 rounded-lg border border-red-100">
               {erro}
             </div>
           )}
@@ -299,8 +444,10 @@ export default function Login() {
             {carregando
               ? "Processando..."
               : isCadastro
-              ? "Registrar Conta"
-              : "Entrar"}
+                ? role === "driver"
+                  ? "Registrar Motorista"
+                  : "Registrar Aluno"
+                : "Entrar"}
           </button>
         </form>
 
@@ -316,9 +463,12 @@ export default function Login() {
           </button>
 
           {!isCadastro && (
-            <a href="#" className="text-[#14213D] text-sm hover:underline">
+            <button
+              type="button"
+              className="text-[#14213D] text-sm hover:underline"
+            >
               Esqueci a senha
-            </a>
+            </button>
           )}
         </div>
 

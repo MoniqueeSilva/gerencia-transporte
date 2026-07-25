@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import StudentPanel from "./pages/StudentPanel";
 import DriverPanel from "./pages/DriverPanel";
 import LiveLocation from "./pages/LiveLocation";
+import AdminRotas from "./pages/AdminRotas";
 
 export const router = createBrowserRouter([
   {
@@ -25,5 +26,9 @@ export const router = createBrowserRouter([
   {
     path: "/localizacao",
     Component: LiveLocation,
+  },
+  {
+    path: "/admin/rotas",
+    element: <AdminRotas />,
   },
 ]);

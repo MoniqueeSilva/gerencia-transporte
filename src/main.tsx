@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import "./styles/index.css";
+import "leaflet/dist/leaflet.css";
 
 import { AuthProvider } from "./contexts/AuthContext";
 

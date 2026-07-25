@@ -6,6 +6,8 @@ import {
   query,
   where,
   type Unsubscribe,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from "firebase/firestore";
 
 import { db } from "../firebase/firestore";
@@ -20,33 +22,38 @@ export type Presenca = {
   vai: boolean;
   retorna: boolean;
   data: string;
-  rotaId?: string;
-  paradaOrdem?: number;
   atualizadoEm?: unknown;
 };
 
-function formatarPresenca(docSnap: any): Presenca {
+function formatarPresenca(
+  documento: QueryDocumentSnapshot<DocumentData>
+): Presenca {
   return {
-    id: docSnap.id,
-    ...(docSnap.data() as Omit<Presenca, "id">),
+    id: documento.id,
+    ...(documento.data() as Omit<Presenca, "id">),
   };
 }
 
-export async function listarPresencasPorData(data: string) {
-  const q = query(
+export async function listarPresencasPorData(
+  data: string
+): Promise<Presenca[]> {
+  const consulta = query(
     collection(db, "presencas"),
     where("data", "==", data),
     where("vai", "==", true),
     orderBy("nomeAluno", "asc")
   );
 
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(consulta);
 
   return snapshot.docs.map(formatarPresenca);
 }
 
-export async function listarPresencasPorInstituicao(instituicaoId: string, data: string) {
-  const q = query(
+export async function listarPresencasPorInstituicao(
+  instituicaoId: string,
+  data: string
+): Promise<Presenca[]> {
+  const consulta = query(
     collection(db, "presencas"),
     where("instituicaoId", "==", instituicaoId),
     where("data", "==", data),
@@ -54,13 +61,16 @@ export async function listarPresencasPorInstituicao(instituicaoId: string, data:
     orderBy("nomeAluno", "asc")
   );
 
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(consulta);
 
   return snapshot.docs.map(formatarPresenca);
 }
 
-export async function listarPresencasPorTurno(turno: string, data: string) {
-  const q = query(
+export async function listarPresencasPorTurno(
+  turno: string,
+  data: string
+): Promise<Presenca[]> {
+  const consulta = query(
     collection(db, "presencas"),
     where("turno", "==", turno),
     where("data", "==", data),
@@ -68,21 +78,7 @@ export async function listarPresencasPorTurno(turno: string, data: string) {
     orderBy("nomeAluno", "asc")
   );
 
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map(formatarPresenca);
-}
-
-export async function listarPresencasPorRota(rotaId: string, data: string) {
-  const q = query(
-    collection(db, "presencas"),
-    where("rotaId", "==", rotaId),
-    where("data", "==", data),
-    where("vai", "==", true),
-    orderBy("paradaOrdem", "asc")
-  );
-
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(consulta);
 
   return snapshot.docs.map(formatarPresenca);
 }
@@ -91,15 +87,19 @@ export function acompanharPresencasPorData(
   data: string,
   callback: (presencas: Presenca[]) => void
 ): Unsubscribe {
-  const q = query(
+  const consulta = query(
     collection(db, "presencas"),
+    where("turno", "==", true),
     where("data", "==", data),
     where("vai", "==", true),
     orderBy("nomeAluno", "asc")
   );
 
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(consulta, (snapshot) => {
+    console.log("Consulta por turno executada");
+    console.log("Quantidade:", snapshot.docs.length);
     const presencas = snapshot.docs.map(formatarPresenca);
+    console.log(presencas);
     callback(presencas);
   });
 }
@@ -109,7 +109,7 @@ export function acompanharPresencasPorInstituicao(
   data: string,
   callback: (presencas: Presenca[]) => void
 ): Unsubscribe {
-  const q = query(
+  const consulta = query(
     collection(db, "presencas"),
     where("instituicaoId", "==", instituicaoId),
     where("data", "==", data),
@@ -117,7 +117,7 @@ export function acompanharPresencasPorInstituicao(
     orderBy("nomeAluno", "asc")
   );
 
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(consulta, (snapshot) => {
     const presencas = snapshot.docs.map(formatarPresenca);
     callback(presencas);
   });
@@ -128,7 +128,7 @@ export function acompanharPresencasPorTurno(
   data: string,
   callback: (presencas: Presenca[]) => void
 ): Unsubscribe {
-  const q = query(
+  const consulta = query(
     collection(db, "presencas"),
     where("turno", "==", turno),
     where("data", "==", data),
@@ -136,26 +136,7 @@ export function acompanharPresencasPorTurno(
     orderBy("nomeAluno", "asc")
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const presencas = snapshot.docs.map(formatarPresenca);
-    callback(presencas);
-  });
-}
-
-export function acompanharPresencasPorRota(
-  rotaId: string,
-  data: string,
-  callback: (presencas: Presenca[]) => void
-): Unsubscribe {
-  const q = query(
-    collection(db, "presencas"),
-    where("rotaId", "==", rotaId),
-    where("data", "==", data),
-    where("vai", "==", true),
-    orderBy("paradaOrdem", "asc")
-  );
-
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(consulta, (snapshot) => {
     const presencas = snapshot.docs.map(formatarPresenca);
     callback(presencas);
   });
