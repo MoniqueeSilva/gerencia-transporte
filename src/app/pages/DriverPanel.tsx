@@ -9,6 +9,7 @@ import {
   MapPin,
   CalendarDays,
   Bus,
+  XCircle,
 } from "lucide-react";
 
 import { Calendar } from "../components/ui/calendar";
@@ -41,7 +42,7 @@ type MotoristaBanco = {
 
 export default function DriverPanel() {
   const navigate = useNavigate();
-
+  const [acessoNegado, setAcessoNegado] = useState(false);
   const [motoristaBanco, setMotoristaBanco] =
     useState<MotoristaBanco | null>(null);
 
@@ -81,17 +82,11 @@ export default function DriverPanel() {
 
           const dados = await findUserById(usuario.uid);
 
-          if (!dados) {
-            alert("Dados do motorista não encontrados.");
-            navigate("/");
+          if (!dados || dados.role !== "driver") {
+            setAcessoNegado(true);
+            setCarregandoMotorista(false);
             return;
-          }
-
-          if (dados.role !== "driver") {
-            alert("Este usuário não possui perfil de motorista.");
-            navigate("/");
-            return;
-          }
+          } 
 
           if (dados.ativo === false) {
             alert("Este motorista está desativado.");
@@ -340,6 +335,25 @@ export default function DriverPanel() {
     };
 
     return tipos[tipo] || tipo;
+  }
+
+  if (acessoNegado) {
+    return (
+      <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center text-white px-6">
+        <XCircle className="w-20 h-20 mb-4" />
+        <h1 className="text-3xl font-bold mb-2">Acesso Negado</h1>
+        <p className="text-lg text-red-100 text-center max-w-md mb-6">
+          Você não tem permissão para acessar o painel do motorista. Esta área é restrita.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          className="bg-white text-red-600 font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-red-50 transition-colors"
+        >
+          Voltar para o menu
+        </button>
+      </div>
+    );
   }
 
   return (

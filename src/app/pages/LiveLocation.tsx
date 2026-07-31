@@ -1,3 +1,5 @@
+import iconeOnibus from "../../assets/onibus.png";
+import iconeAluno from "../../assets/aluno.png";
 import { buscarRota } from "../../services/openRouteService";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -38,6 +40,20 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
+});
+
+const iconeOnibusPersonalizado = L.icon({
+  iconUrl: iconeOnibus,
+  iconSize: [38, 38],
+  iconAnchor: [19, 38],
+  popupAnchor: [0, -38],
+});
+
+const iconeAlunoPersonalizado = L.icon({
+  iconUrl: iconeAluno,
+  iconSize: [38, 38],
+  iconAnchor: [19, 38],
+  popupAnchor: [0, -38],
 });
 
 type UsuarioBanco = {
@@ -164,6 +180,7 @@ export default function LiveLocation() {
   }
 }
 
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
@@ -242,7 +259,10 @@ export default function LiveLocation() {
             />
 
             {localAluno && (
-              <Marker position={localAluno}>
+              <Marker 
+                position={localAluno}
+                icon={iconeAlunoPersonalizado}
+              >
                 <Popup>
                   Você está aqui.
                 </Popup>
@@ -255,6 +275,7 @@ export default function LiveLocation() {
                   localizacao.latitude,
                   localizacao.longitude,
                 ]}
+                icon={iconeOnibusPersonalizado}
               >
                 <Popup>
                   <strong>Ônibus Escolar</strong>

@@ -42,6 +42,7 @@ type UsuarioBanco = {
 
 export default function StudentPanel() {
   const navigate = useNavigate();
+  const [acessoNegado, setAcessoNegado] = useState(false);
 
   const [selectedShift, setSelectedShift] = useState("manha");
   const [selectedTransport, setSelectedTransport] =
@@ -93,10 +94,11 @@ export default function StudentPanel() {
           navigate("/");
           return;
         }
-
+        
         if (dados.role !== "student") {
-          alert("Este usuário não possui perfil de aluno.");
-          navigate("/");
+          console.log("ROLE ENCONTRADO NO BANCO:", dados.role);
+          setAcessoNegado(true);
+          setCarregandoUsuario(false);
           return;
         }
 
@@ -268,7 +270,6 @@ export default function StudentPanel() {
       volta: "Somente volta",
       "ida-volta": "Ida e volta",
     };
-
     return tipos[tipo] || tipo;
   }
 
@@ -309,6 +310,25 @@ export default function StudentPanel() {
       presencaUsuarioAtual.tipoTransporte
     );
   }, [presencaUsuarioAtual]);
+
+  if (acessoNegado) {
+    return (
+      <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-6 text-center">
+        <XCircle className="w-24 h-24 text-red-600 mb-6 shadow-sm rounded-full bg-white" />
+        <h1 className="text-3xl font-bold text-red-700 mb-2">Acesso Restrito</h1>
+        <p className="text-red-700 mb-8 max-w-md">
+          Esta página é exclusiva para o controle de presença dos alunos. Como motorista, você não tem permissão para acessar esta área.
+        </p>
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="bg-red-600 text-white px-8 py-4 rounded-lg font-bold hover:bg-red-700 flex items-center gap-2 transition-colors shadow-md"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Voltar para o menu
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

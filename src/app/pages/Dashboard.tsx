@@ -1,8 +1,37 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { LogOut, User, Truck, CheckCircle, Users, MapPin } from "lucide-react";
+import { auth } from "../../firebase/auth";
+import { findUserById } from "../../services/userService";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  const [nomeUsuario, setNomeUsuario] = useState("Carregando...");
+
+  useEffect(() => {
+    async function carregarDadosUsuario() {
+      const usuario = auth.currentUser;
+      if (!usuario) {
+        navigate("/");
+        return;
+      }
+      try {
+        const dados: any = await findUserById(usuario.uid);
+        if (dados?.nome) {
+          setNomeUsuario(dados.nome);
+        } else if (usuario.displayName) {
+          setNomeUsuario(usuario.displayName);
+        } else {
+          setNomeUsuario("Usuário");
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário:", error);
+        setNomeUsuario("Usuário");
+      }
+    }
+    carregarDadosUsuario();
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -24,7 +53,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Greeting */}
         <div className="mb-8">
-          <h2 className="text-[#000000] mb-2">Olá, João Silva</h2>
+         <h2 className="text-[#000000] mb-2">Olá, {nomeUsuario}</h2>
           <p className="text-[#000000]">Bem-vindo ao sistema de transporte escolar</p>
         </div>
 
